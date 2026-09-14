@@ -13,7 +13,7 @@ from esje.prompts import resolve_mysql_credentials
 
 from esje.live import live_manager
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def pause_live(widget_id: Optional[str] = None) -> None:

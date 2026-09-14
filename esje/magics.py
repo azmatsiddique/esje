@@ -45,59 +45,64 @@ def parse_sql_line(line: str) -> Tuple[Optional[str], Optional[str], Optional[fl
 def split_sql_and_python(cell: str) -> Tuple[str, str]:
     """Split cell body into (sql_query, python_code)."""
     raw_cell = cell.strip()
+    if not raw_cell:
+        return "", ""
 
-    # If explicit ';' separates SQL from Python code, split on ';'
-    if ";" in raw_cell:
-        parts = raw_cell.split(";", 1)
-        sql_part = parts[0].strip()
-        python_part = parts[1].strip()
-        if any(trig in python_part for trig in ("import ", "plt.", "df.", "fig", "ax", "matplotlib", "#", "=")):
-            return sql_part, python_part
-
-    lines = raw_cell.splitlines()
-    sql_lines = []
-    python_lines = []
-    in_python = False
-
-    sql_start_keywords = (
+    sql_clause_keywords = (
         "select", "with", "insert", "update", "delete",
         "show", "describe", "desc", "explain", "create",
         "drop", "alter", "use", "grant", "revoke", "set",
         "from", "where", "group", "order", "having", "limit",
         "join", "left", "right", "inner", "outer", "on", "and", "or",
-        "values", "into", "as", "union", "all", "distinct", "case", "when", "then", "else", "end"
+        "values", "into", "union", "all", "case", "when", "then", "else", "end"
     )
 
     python_triggers = (
-        "import ", "from ", "plt.", "df.", "fig", "ax", "print(", "#", "pd.", "matplotlib"
+        "import ", "from ", "plt.", "df.", "fig.", "fig,", "ax.", "ax,", "print(", "pd.", "sns.", "matplotlib", "#"
     )
 
-    for line in lines:
+    # If explicit ';' exists in the cell body, check if part after ';' is Python code
+    if ";" in raw_cell:
+        parts = raw_cell.split(";", 1)
+        sql_candidate = parts[0].strip()
+        rest = parts[1].strip()
+
+        if not rest:
+            return sql_candidate, ""
+
+        if any(trig in rest for trig in python_triggers) or "=" in rest or "\n" in rest:
+            return sql_candidate, rest
+
+    lines = raw_cell.splitlines()
+    python_start_idx = None
+
+    for idx, line in enumerate(lines):
         stripped = line.strip()
         if not stripped:
-            if in_python:
-                python_lines.append(line)
-            else:
-                sql_lines.append(line)
             continue
 
-        if not in_python:
-            first_word = stripped.split()[0].lower() if stripped.split() else ""
-            is_python_line = (
-                any(stripped.startswith(trig) for trig in python_triggers)
-                or ("from " in stripped and " import " in stripped)
-                or (first_word not in sql_start_keywords and not first_word.startswith((";", "'", '"', "(")))
-            )
+        first_word = stripped.split()[0].lower() if stripped.split() else ""
 
-            if is_python_line:
-                in_python = True
-                python_lines.append(line)
-            else:
-                sql_lines.append(line)
-        else:
-            python_lines.append(line)
+        is_python = (
+            any(stripped.startswith(trig) for trig in python_triggers)
+            or ("from " in stripped and " import " in stripped)
+            or ("=" in stripped and first_word not in sql_clause_keywords and not stripped.startswith("("))
+        )
 
-    return "\n".join(sql_lines).strip(), "\n".join(python_lines).strip()
+        if is_python:
+            python_start_idx = idx
+            break
+
+    if python_start_idx is not None:
+        sql_lines = lines[:python_start_idx]
+        python_lines = lines[python_start_idx:]
+        sql_str = "\n".join(sql_lines).strip().rstrip(";")
+        python_str = "\n".join(python_lines).strip()
+        return sql_str, python_str
+
+    return raw_cell.rstrip(";"), ""
+
+
 
 
 
