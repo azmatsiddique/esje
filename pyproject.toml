@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esje"
+version = "0.1.0"
+description = "SQL Magic for Jupyter Notebooks with simple, opinionated credentials management"
+readme = "README.md"
+authors = [
+    { name = "EasySQL Team" }
+]
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Framework :: IPython",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "ipython>=7.0.0",
+    "pandas>=1.0.0",
+    "sqlalchemy>=1.4.0",
+    "pymysql>=1.0.0",
+    "python-dotenv>=0.19.0",
+]
+
+[project.optional-dependencies]
+pyarrow = [
+    "pyarrow>=10.0.0",
+]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "pyarrow>=10.0.0",
+]
+
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["esje*"]
