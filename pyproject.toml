@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "esje"
-version = "0.2.0"
+version = "0.3.0"
 description = "SQL Magic for Jupyter Notebooks with simple, opinionated credentials management"
 readme = "README.md"
 authors = [
