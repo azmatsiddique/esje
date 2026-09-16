@@ -219,6 +219,7 @@ class LiveWidget:
             try:
                 import matplotlib
                 import matplotlib.pyplot as plt
+                import warnings
 
                 matplotlib.use("Agg", force=True)
                 plt.close("all")
@@ -227,13 +228,15 @@ class LiveWidget:
                 plt.show = lambda *a, **kw: None
 
                 try:
-                    exec(self.python_code, self.shell.user_ns if self.shell else {})
-                    fig = plt.gcf()
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category=UserWarning, module="matplotlib")
+                        exec(self.python_code, self.shell.user_ns if self.shell else {})
+                        fig = plt.gcf()
 
-                    buf = io.BytesIO()
-                    fig.savefig(buf, format="png", bbox_inches="tight")
-                    buf.seek(0)
-                    b64 = base64.b64encode(buf.read()).decode("utf-8")
+                        buf = io.BytesIO()
+                        fig.savefig(buf, format="png", bbox_inches="tight")
+                        buf.seek(0)
+                        b64 = base64.b64encode(buf.read()).decode("utf-8")
                     return (
                         f'<div style="text-align: center; padding: 6px;">'
                         f'<img src="data:image/png;base64,{b64}" '

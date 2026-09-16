@@ -14,7 +14,7 @@ from esje.prompts import resolve_bigquery_credentials, resolve_mysql_credentials
 
 from esje.live import live_manager
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 
 def pause_live(widget_id: Optional[str] = None) -> None:
