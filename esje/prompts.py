@@ -113,6 +113,7 @@ def resolve_bigquery_credentials(
     dataset: Optional[str] = None,
     credentials_path: Optional[str] = None,
     location: Optional[str] = None,
+    auth_method: Optional[str] = None,
     interactive_prompt: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Resolve BigQuery connection credentials from arguments, env vars, or interactive prompts.
@@ -122,10 +123,11 @@ def resolve_bigquery_credentials(
         dataset: Default BigQuery dataset name.
         credentials_path: Path to Google Service Account JSON key file.
         location: BigQuery dataset location (e.g. 'US', 'EU').
+        auth_method: One of 'browser', 'adc', or 'service_account'. Auto-detected if None.
         interactive_prompt: Override interactive prompting behavior.
 
     Returns:
-        Dict with keys: project, dataset, credentials_path, location.
+        Dict with keys: project, dataset, credentials_path, location, auth_method.
     """
     env_project = (
         os.getenv("ESJE_BIGQUERY_PROJECT")
@@ -139,6 +141,7 @@ def resolve_bigquery_credentials(
         or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
     )
     env_location = os.getenv("ESJE_BIGQUERY_LOCATION") or os.getenv("BIGQUERY_LOCATION")
+    env_auth_method = os.getenv("ESJE_BIGQUERY_AUTH_METHOD")
 
     resolved_project = project if project is not None else env_project
     resolved_dataset = dataset if dataset is not None else env_dataset
@@ -146,10 +149,25 @@ def resolve_bigquery_credentials(
         credentials_path if credentials_path is not None else env_credentials_path
     )
     resolved_location = location if location is not None else env_location
+    resolved_auth_method = auth_method if auth_method is not None else env_auth_method
 
     should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
 
-    if should_prompt:
+    # Auto-determine auth_method if not specified:
+    # - If a credentials path is available -> service_account
+    # - If interactive -> browser (opens login in browser)
+    # - Otherwise -> adc (gcloud ADC)
+    if resolved_auth_method is None:
+        if resolved_credentials_path:
+            resolved_auth_method = "service_account"
+        elif should_prompt:
+            resolved_auth_method = "browser"
+        else:
+            resolved_auth_method = "adc"
+
+    if should_prompt and resolved_auth_method != "browser":
+        # Only prompt for project/dataset when not using browser login
+        # (browser flow can auto-detect these from the token)
         if resolved_project is None:
             project_input = input("GCP Project ID: ").strip()
             resolved_project = project_input if project_input else ""
@@ -158,14 +176,21 @@ def resolve_bigquery_credentials(
             dataset_input = input("BigQuery Dataset [optional]: ").strip()
             resolved_dataset = dataset_input if dataset_input else ""
 
-        if resolved_credentials_path is None:
-            cred_input = input("Service Account JSON Path [optional, press Enter for ADC]: ").strip()
+        if resolved_auth_method == "service_account" and resolved_credentials_path is None:
+            cred_input = input("Service Account JSON Path: ").strip()
             resolved_credentials_path = cred_input if cred_input else None
+
+    elif should_prompt and resolved_auth_method == "browser":
+        # For browser login, only ask for project if we really need it
+        if resolved_project is None:
+            project_input = input("GCP Project ID [optional, press Enter to auto-detect]: ").strip()
+            resolved_project = project_input if project_input else ""
 
     return {
         "project": resolved_project or "",
         "dataset": resolved_dataset or "",
         "credentials_path": resolved_credentials_path,
         "location": resolved_location,
+        "auth_method": resolved_auth_method,
     }
 

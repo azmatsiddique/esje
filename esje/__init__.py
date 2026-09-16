@@ -79,16 +79,24 @@ def connect_bigquery(
     dataset: Optional[str] = None,
     credentials_path: Optional[str] = None,
     location: Optional[str] = None,
+    auth_method: Optional[str] = None,
     interactive_prompt: Optional[bool] = None,
     custom_client: Any = None,
     custom_engine: Any = None,
 ) -> Connection:
-    """Connect to Google BigQuery and store in connection registry."""
+    """Connect to Google BigQuery and store in connection registry.
+
+    Auth methods:
+    - ``auth_method='browser'`` — opens a Google login in your browser (default when interactive).
+    - ``auth_method='adc'`` — uses Application Default Credentials.
+    - ``auth_method='service_account'`` — uses a service account JSON key file.
+    """
     creds = resolve_bigquery_credentials(
         project=project,
         dataset=dataset,
         credentials_path=credentials_path,
         location=location,
+        auth_method=auth_method,
         interactive_prompt=interactive_prompt,
     )
 
@@ -97,6 +105,7 @@ def connect_bigquery(
         dataset=creds["dataset"],
         credentials_path=creds["credentials_path"],
         location=creds["location"],
+        auth_method=creds["auth_method"],
         custom_client=custom_client,
         custom_engine=custom_engine,
     )
@@ -104,8 +113,9 @@ def connect_bigquery(
 
     conn = Connection(name=name, driver=driver)
     manager.add(conn)
-    proj_info = creds['project'] if creds['project'] else 'ADC'
-    print(f"Connected to BigQuery project '{proj_info}' as connection '{name}'.")
+    proj_info = driver.project or creds['project'] or 'auto-detected'
+    auth_info = creds['auth_method']
+    print(f"✅ Connected to BigQuery project '{proj_info}' via {auth_info} as connection '{name}'.")
     return conn
 
 

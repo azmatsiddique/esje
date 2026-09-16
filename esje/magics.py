@@ -54,7 +54,8 @@ def split_sql_and_python(cell: str) -> Tuple[str, str]:
         "drop", "alter", "use", "grant", "revoke", "set",
         "from", "where", "group", "order", "having", "limit",
         "join", "left", "right", "inner", "outer", "on", "and", "or",
-        "values", "into", "union", "all", "case", "when", "then", "else", "end"
+        "values", "into", "union", "all", "case", "when", "then", "else", "end",
+        "options"
     )
 
     python_triggers = (
@@ -74,6 +75,17 @@ def split_sql_and_python(cell: str) -> Tuple[str, str]:
             return sql_candidate, rest
 
     lines = raw_cell.splitlines()
+    first_line = ""
+    for line in lines:
+        if line.strip():
+            first_line = line.strip()
+            break
+
+    first_word = first_line.split()[0].lower() if first_line.split() else ""
+
+    if first_word in sql_clause_keywords:
+        return raw_cell.rstrip(";"), ""
+
     python_start_idx = None
 
     for idx, line in enumerate(lines):
