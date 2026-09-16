@@ -106,3 +106,66 @@ def resolve_mysql_credentials(
         "password": resolved_password,
         "database": resolved_database,
     }
+
+
+def resolve_bigquery_credentials(
+    project: Optional[str] = None,
+    dataset: Optional[str] = None,
+    credentials_path: Optional[str] = None,
+    location: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve BigQuery connection credentials from arguments, env vars, or interactive prompts.
+
+    Args:
+        project: GCP Project ID.
+        dataset: Default BigQuery dataset name.
+        credentials_path: Path to Google Service Account JSON key file.
+        location: BigQuery dataset location (e.g. 'US', 'EU').
+        interactive_prompt: Override interactive prompting behavior.
+
+    Returns:
+        Dict with keys: project, dataset, credentials_path, location.
+    """
+    env_project = (
+        os.getenv("ESJE_BIGQUERY_PROJECT")
+        or os.getenv("GCP_PROJECT")
+        or os.getenv("GOOGLE_CLOUD_PROJECT")
+        or os.getenv("BIGQUERY_PROJECT")
+    )
+    env_dataset = os.getenv("ESJE_BIGQUERY_DATASET") or os.getenv("BIGQUERY_DATASET")
+    env_credentials_path = (
+        os.getenv("ESJE_BIGQUERY_CREDENTIALS_PATH")
+        or os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+    )
+    env_location = os.getenv("ESJE_BIGQUERY_LOCATION") or os.getenv("BIGQUERY_LOCATION")
+
+    resolved_project = project if project is not None else env_project
+    resolved_dataset = dataset if dataset is not None else env_dataset
+    resolved_credentials_path = (
+        credentials_path if credentials_path is not None else env_credentials_path
+    )
+    resolved_location = location if location is not None else env_location
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_project is None:
+            project_input = input("GCP Project ID: ").strip()
+            resolved_project = project_input if project_input else ""
+
+        if resolved_dataset is None:
+            dataset_input = input("BigQuery Dataset [optional]: ").strip()
+            resolved_dataset = dataset_input if dataset_input else ""
+
+        if resolved_credentials_path is None:
+            cred_input = input("Service Account JSON Path [optional, press Enter for ADC]: ").strip()
+            resolved_credentials_path = cred_input if cred_input else None
+
+    return {
+        "project": resolved_project or "",
+        "dataset": resolved_dataset or "",
+        "credentials_path": resolved_credentials_path,
+        "location": resolved_location,
+    }
+

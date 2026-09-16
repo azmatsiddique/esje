@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "esje"
-version = "0.1.1"
+version = "0.2.0"
 description = "SQL Magic for Jupyter Notebooks with simple, opinionated credentials management"
 readme = "README.md"
 authors = [
@@ -31,10 +31,15 @@ dependencies = [
 pyarrow = [
     "pyarrow>=10.0.0",
 ]
+bigquery = [
+    "google-cloud-bigquery>=3.0.0",
+    "db-dtypes>=1.0.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=3.0.0",
     "pyarrow>=10.0.0",
+    "google-cloud-bigquery>=3.0.0",
 ]
 
 

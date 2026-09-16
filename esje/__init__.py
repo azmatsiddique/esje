@@ -6,14 +6,15 @@ import pandas as pd
 
 from esje.config import config
 from esje.connection import Connection, manager
+from esje.drivers.bigquery import BigQueryDriver
 from esje.drivers.mysql import MySQLDriver
 from esje.errors import ConnectionError, EsjeError, QueryError
 from esje.extension import load_ipython_extension, unload_ipython_extension
-from esje.prompts import resolve_mysql_credentials
+from esje.prompts import resolve_bigquery_credentials, resolve_mysql_credentials
 
 from esje.live import live_manager
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 
 def pause_live(widget_id: Optional[str] = None) -> None:
@@ -72,14 +73,53 @@ def connect_mysql(
     return conn
 
 
+def connect_bigquery(
+    name: str = "bigquery",
+    project: Optional[str] = None,
+    dataset: Optional[str] = None,
+    credentials_path: Optional[str] = None,
+    location: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_client: Any = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to Google BigQuery and store in connection registry."""
+    creds = resolve_bigquery_credentials(
+        project=project,
+        dataset=dataset,
+        credentials_path=credentials_path,
+        location=location,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = BigQueryDriver(
+        project=creds["project"],
+        dataset=creds["dataset"],
+        credentials_path=creds["credentials_path"],
+        location=creds["location"],
+        custom_client=custom_client,
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    proj_info = creds['project'] if creds['project'] else 'ADC'
+    print(f"Connected to BigQuery project '{proj_info}' as connection '{name}'.")
+    return conn
+
+
 def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
     """Generic connection helper dispatching to dialect-specific connector."""
-    if dialect.lower() == "mysql":
+    d = dialect.lower()
+    if d == "mysql":
         return connect_mysql(**kwargs)
+    elif d in ("bigquery", "bq"):
+        return connect_bigquery(**kwargs)
     else:
         raise ConnectionError(
-            f"Unsupported dialect '{dialect}' in v1. Currently supported: 'mysql'.",
-            hint="PostgreSQL support planned for v2.",
+            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'bigquery'.",
+            hint="Use connect_mysql() or connect_bigquery().",
         )
 
 
@@ -109,6 +149,7 @@ def close_all() -> None:
 
 __all__ = [
     "connect_mysql",
+    "connect_bigquery",
     "connect",
     "use",
     "connections",
@@ -125,4 +166,5 @@ __all__ = [
     "ConnectionError",
     "QueryError",
 ]
+
 

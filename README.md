@@ -12,10 +12,11 @@
 ## ✨ Features
 
 - 🔒 **Zero Hardcoded Secrets**: Interactive `getpass` prompts and automatic `.env` / environment variable fallbacks prevent password leaks in notebook cells, git commits, or exports.
+- ☁️ **Google BigQuery Native Driver**: Query Google BigQuery data warehouses directly using Application Default Credentials (ADC) or service account key JSON files.
 - ⚡ **PyArrow High-Performance Backend**: Optional PyArrow data type integration for memory-efficient and fast query execution on large datasets.
 - 📊 **SQL + Python Inline Execution**: Write SQL queries and Python plotting code (`matplotlib`, `seaborn`, `plotly`) in the exact same `%%sql` cell.
 - ⏱️ **Non-Blocking `--live` Dashboards**: Run queries on an auto-refresh timer without blocking the Jupyter kernel execution thread. Includes interactive Play/Pause/Stop widget controls.
-- 🔌 **Named Connection Registry**: Connect to multiple databases and switch between them effortlessly using `-c <conn_name>` or `esje.use()`.
+- 🔌 **Named Connection Registry**: Connect to multiple databases/warehouses and switch between them effortlessly using `-c <conn_name>` or `esje.use()`.
 - 🛡️ **Clean Exception Handling**: Friendly, concise error messages by default without distracting multi-page Python tracebacks.
 
 ---
@@ -28,10 +29,16 @@ Install `esje` via `pip`:
 pip install esje
 ```
 
-For high-performance PyArrow data type acceleration, install with the optional `pyarrow` extra:
+To enable **Google BigQuery** support, install with the `bigquery` extra:
 
 ```bash
-pip install "esje[pyarrow]"
+pip install "esje[bigquery]"
+```
+
+For high-performance PyArrow data type acceleration, install with the `pyarrow` extra:
+
+```bash
+pip install "esje[pyarrow,bigquery]"
 ```
 
 ---
@@ -57,10 +64,26 @@ import esje
 conn = esje.connect_mysql()
 ```
 
-Or connect with a named connection:
+### 3. Connect to Google BigQuery
+
+Connect to Google BigQuery using Application Default Credentials (ADC) or explicit project credentials:
 
 ```python
-esje.connect_mysql(name="analytics", database="sales_db")
+import esje
+
+# Connect using Application Default Credentials (ADC) or env vars
+bq_conn = esje.connect_bigquery(
+    name="bq_prod",
+    project="my-gcp-project",
+    dataset="sales_analytics"
+)
+
+# Connect using Service Account JSON key file
+bq_conn = esje.connect_bigquery(
+    name="bq_sa",
+    project="my-gcp-project",
+    credentials_path="/path/to/service_account.json"
+)
 ```
 
 ---
@@ -69,16 +92,16 @@ esje.connect_mysql(name="analytics", database="sales_db")
 
 ### Line Magic (`%sql`)
 
-Run a quick one-liner SQL query:
+Run a quick one-liner SQL query against active connection or specified connection:
 
 ```python
 %sql SELECT * FROM users LIMIT 5
 ```
 
-Assign the query result directly to a Python variable:
+Query BigQuery using named connection `-c`:
 
 ```python
-df = %sql SELECT country, SUM(revenue) FROM sales GROUP BY country
+df = %sql -c bq_prod SELECT country, SUM(revenue) FROM `my-gcp-project.sales_analytics.orders` GROUP BY country
 ```
 
 ### Cell Magic (`%%sql`)
@@ -86,12 +109,12 @@ df = %sql SELECT country, SUM(revenue) FROM sales GROUP BY country
 Execute multi-line SQL queries and capture results into a DataFrame with `-o <var_name>`:
 
 ```python
-%%sql -o sales_summary
+%%sql -c bq_prod -o sales_summary
 SELECT 
     category,
     COUNT(*) AS total_orders,
     SUM(revenue) AS total_revenue
-FROM sales_data
+FROM `my-gcp-project.sales_analytics.sales_data`
 WHERE created_at >= '2026-01-01'
 GROUP BY category
 ORDER BY total_revenue DESC;
@@ -102,9 +125,9 @@ ORDER BY total_revenue DESC;
 Combine SQL data extraction with immediate visualization. The result DataFrame is automatically made available to your Python snippet as `df`:
 
 ```python
-%%sql
+%%sql -c bq_prod
 SELECT category, SUM(revenue) AS total_revenue 
-FROM sales_data 
+FROM `my-gcp-project.sales_analytics.sales_data` 
 GROUP BY category;
 
 import matplotlib.pyplot as plt
@@ -113,7 +136,7 @@ df.plot(
     x='category', 
     y='total_revenue', 
     kind='bar', 
-    title='Total Revenue by Category',
+    title='Total Revenue by Category (BigQuery)',
     color='skyblue',
     figsize=(8, 4)
 )
@@ -129,9 +152,9 @@ plt.show()
 Create real-time, auto-refreshing dashboard widgets right inside your notebook! Passing `--live <interval_seconds>` launches a background thread that periodically re-executes the query and updates the visualization **without blocking your Jupyter kernel**.
 
 ```python
-%%sql --live 2
+%%sql -c bq_prod --live 5
 SELECT category, SUM(revenue) AS total_revenue 
-FROM sales_data 
+FROM `my-gcp-project.sales_analytics.sales_data`
 GROUP BY category;
 
 import matplotlib.pyplot as plt
@@ -140,7 +163,7 @@ df.plot(
     x='category', 
     y='total_revenue', 
     kind='bar', 
-    title='Real-Time Revenue Dashboard',
+    title='Real-Time BigQuery Revenue Dashboard',
     color='teal',
     figsize=(8, 4)
 )
@@ -171,10 +194,12 @@ esje.stop_all_live()   # Stop all running background widgets
 
 ## 🔑 Credential Resolution Order
 
-When calling `esje.connect_mysql()`, credentials are automatically resolved in the following priority order:
+Credentials are resolved in the following priority order:
 
-1. **Explicit Parameters**: Arguments passed directly to `esje.connect_mysql(host=..., user=..., password=...)`.
-2. **Environment File (`.env`)**: Variables defined in a local `.env` file (`ESJE_MYSQL_HOST`, `ESJE_MYSQL_USER`, `ESJE_MYSQL_PASSWORD`, `ESJE_MYSQL_DATABASE`, `ESJE_MYSQL_PORT`).
+1. **Explicit Parameters**: Arguments passed directly to `connect_mysql(...)` or `connect_bigquery(...)`.
+2. **Environment File (`.env`)**:
+   - MySQL: `ESJE_MYSQL_HOST`, `ESJE_MYSQL_USER`, `ESJE_MYSQL_PASSWORD`, `ESJE_MYSQL_DATABASE`, `ESJE_MYSQL_PORT`.
+   - BigQuery: `ESJE_BIGQUERY_PROJECT` (or `GCP_PROJECT`/`GOOGLE_CLOUD_PROJECT`), `ESJE_BIGQUERY_DATASET`, `GOOGLE_APPLICATION_CREDENTIALS` (or `ESJE_BIGQUERY_CREDENTIALS_PATH`).
 3. **OS Environment Variables**: System environment variables set in shell context.
 4. **Interactive `getpass` Prompts**: Secure interactive prompts for missing credentials without echoing inputs.
 
@@ -211,10 +236,10 @@ List, switch, and close active database connections:
 esje.connections()
 
 # Switch the default active connection for %sql magics
-esje.use("analytics")
+esje.use("bq_prod")
 
 # Close a specific connection
-esje.close("analytics")
+esje.close("bq_prod")
 
 # Close all connections and stop all live widgets
 esje.close_all()
@@ -227,8 +252,9 @@ esje.close_all()
 `esje` is expanding into a universal, AI-native data connectivity ecosystem for notebook environments. Upcoming features include:
 
 ### 🌐 1. Universal Database & Data Lake Connectivity
+- **Supported Dialects**: MySQL, Google BigQuery.
 - **Relational Databases**: Native drivers for PostgreSQL, SQLite, Oracle, Microsoft SQL Server, and CockroachDB.
-- **Big Data & Data Warehouses**: Apache Hive, Trino / Presto, Apache Spark SQL, Databricks, Snowflake, Google BigQuery, Amazon Redshift, and ClickHouse.
+- **Big Data & Data Warehouses**: Apache Hive, Trino / Presto, Apache Spark SQL, Databricks, Snowflake, Amazon Redshift, and ClickHouse.
 - **Embedded & Columnar Engines**: DuckDB, Polars engine support, and parquet/feather direct query execution.
 
 ### 🤖 2. AI-Powered Intelligent Companion (`--ai` / `%%sql --ai`)
