@@ -19,7 +19,7 @@ from esje.prompts import (
 
 from esje.live import live_manager
 
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 
 
 def pause_live(widget_id: Optional[str] = None) -> None:
