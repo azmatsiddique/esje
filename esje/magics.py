@@ -55,37 +55,14 @@ def split_sql_and_python(cell: str) -> Tuple[str, str]:
         "from", "where", "group", "order", "having", "limit",
         "join", "left", "right", "inner", "outer", "on", "and", "or",
         "values", "into", "union", "all", "case", "when", "then", "else", "end",
-        "options"
+        "options", "table", "index", "database", "schema"
     )
 
     python_triggers = (
         "import ", "from ", "plt.", "df.", "fig.", "fig,", "ax.", "ax,", "print(", "pd.", "sns.", "matplotlib", "#"
     )
 
-    # If explicit ';' exists in the cell body, check if part after ';' is Python code
-    if ";" in raw_cell:
-        parts = raw_cell.split(";", 1)
-        sql_candidate = parts[0].strip()
-        rest = parts[1].strip()
-
-        if not rest:
-            return sql_candidate, ""
-
-        if any(trig in rest for trig in python_triggers) or "=" in rest or "\n" in rest:
-            return sql_candidate, rest
-
     lines = raw_cell.splitlines()
-    first_line = ""
-    for line in lines:
-        if line.strip():
-            first_line = line.strip()
-            break
-
-    first_word = first_line.split()[0].lower() if first_line.split() else ""
-
-    if first_word in sql_clause_keywords:
-        return raw_cell.rstrip(";"), ""
-
     python_start_idx = None
 
     for idx, line in enumerate(lines):
@@ -95,10 +72,36 @@ def split_sql_and_python(cell: str) -> Tuple[str, str]:
 
         first_word = stripped.split()[0].lower() if stripped.split() else ""
 
+        # Check for inline semicolon split on a single line: e.g. "SELECT * FROM users; df.plot()"
+        if ";" in stripped:
+            parts = stripped.split(";", 1)
+            rest = parts[1].strip()
+            if rest:
+                rest_first_word = rest.split()[0].lower() if rest.split() else ""
+                if rest_first_word not in sql_clause_keywords:
+                    is_rest_python = (
+                        any(rest.startswith(trig) for trig in python_triggers)
+                        or ("from " in rest and " import " in rest)
+                        or ("=" in rest and not rest.startswith("("))
+                    )
+                    if is_rest_python:
+                        sql_part = "\n".join(lines[:idx] + [parts[0].strip()]).strip().rstrip(";")
+                        py_part = "\n".join([rest] + lines[idx + 1:]).strip()
+                        return sql_part, py_part
+
+        if idx == 0:
+            continue
+
         is_python = (
             any(stripped.startswith(trig) for trig in python_triggers)
             or ("from " in stripped and " import " in stripped)
-            or ("=" in stripped and first_word not in sql_clause_keywords and not stripped.startswith("("))
+            or (
+                "=" in stripped
+                and first_word not in sql_clause_keywords
+                and not stripped.startswith("(")
+                and not stripped.startswith("'")
+                and not stripped.startswith('"')
+            )
         )
 
         if is_python:
@@ -113,6 +116,7 @@ def split_sql_and_python(cell: str) -> Tuple[str, str]:
         return sql_str, python_str
 
     return raw_cell.rstrip(";"), ""
+
 
 
 

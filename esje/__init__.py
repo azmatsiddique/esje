@@ -8,9 +8,14 @@ from esje.config import config
 from esje.connection import Connection, manager
 from esje.drivers.bigquery import BigQueryDriver
 from esje.drivers.mysql import MySQLDriver
+from esje.drivers.postgres import PostgresDriver
 from esje.errors import ConnectionError, EsjeError, QueryError
 from esje.extension import load_ipython_extension, unload_ipython_extension
-from esje.prompts import resolve_bigquery_credentials, resolve_mysql_credentials
+from esje.prompts import (
+    resolve_bigquery_credentials,
+    resolve_mysql_credentials,
+    resolve_postgres_credentials,
+)
 
 from esje.live import live_manager
 
@@ -73,6 +78,48 @@ def connect_mysql(
     return conn
 
 
+def connect_postgres(
+    name: str = "postgres",
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    sslmode: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to a PostgreSQL database and store in connection registry."""
+    creds = resolve_postgres_credentials(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        sslmode=sslmode,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = PostgresDriver(
+        host=creds["host"],
+        port=creds["port"],
+        user=creds["user"],
+        password=creds["password"],
+        database=creds["database"],
+        sslmode=creds["sslmode"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    print(f"Connected to PostgreSQL on {creds['host']}:{creds['port']} as connection '{name}'.")
+    return conn
+
+
+connect_postgresql = connect_postgres
+
+
 def connect_bigquery(
     name: str = "bigquery",
     project: Optional[str] = None,
@@ -122,14 +169,16 @@ def connect_bigquery(
 def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
     """Generic connection helper dispatching to dialect-specific connector."""
     d = dialect.lower()
-    if d == "mysql":
+    if d in ("mysql", "mariadb"):
         return connect_mysql(**kwargs)
+    elif d in ("postgres", "postgresql", "pg", "psql"):
+        return connect_postgres(**kwargs)
     elif d in ("bigquery", "bq"):
         return connect_bigquery(**kwargs)
     else:
         raise ConnectionError(
-            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'bigquery'.",
-            hint="Use connect_mysql() or connect_bigquery().",
+            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'bigquery'.",
+            hint="Use connect_postgres(), connect_mysql(), or connect_bigquery().",
         )
 
 
@@ -159,6 +208,8 @@ def close_all() -> None:
 
 __all__ = [
     "connect_mysql",
+    "connect_postgres",
+    "connect_postgresql",
     "connect_bigquery",
     "connect",
     "use",
@@ -176,5 +227,6 @@ __all__ = [
     "ConnectionError",
     "QueryError",
 ]
+
 
 

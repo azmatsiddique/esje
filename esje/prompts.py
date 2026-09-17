@@ -194,3 +194,86 @@ def resolve_bigquery_credentials(
         "auth_method": resolved_auth_method,
     }
 
+
+def resolve_postgres_credentials(
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    sslmode: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve PostgreSQL connection credentials from arguments, env vars, or interactive prompts.
+
+    Args:
+        host: Hostname or IP.
+        port: Port number.
+        user: Username.
+        password: Password.
+        database: Database name.
+        sslmode: SSL connection mode (e.g. 'require', 'prefer', 'disable').
+        interactive_prompt: Override interactive prompting behavior.
+
+    Returns:
+        Dict with keys: host, port, user, password, database, sslmode.
+    """
+    env_host = os.getenv("ESJE_POSTGRES_HOST") or os.getenv("POSTGRES_HOST") or os.getenv("PGHOST")
+    env_port = os.getenv("ESJE_POSTGRES_PORT") or os.getenv("POSTGRES_PORT") or os.getenv("PGPORT")
+    env_user = os.getenv("ESJE_POSTGRES_USER") or os.getenv("POSTGRES_USER") or os.getenv("PGUSER")
+    env_password = os.getenv("ESJE_POSTGRES_PASSWORD") or os.getenv("POSTGRES_PASSWORD") or os.getenv("PGPASSWORD")
+    env_database = os.getenv("ESJE_POSTGRES_DATABASE") or os.getenv("POSTGRES_DATABASE") or os.getenv("PGDATABASE")
+    env_sslmode = os.getenv("ESJE_POSTGRES_SSLMODE") or os.getenv("PGSSLMODE")
+
+    resolved_host = host if host is not None else env_host
+    resolved_port = port if port is not None else (int(env_port) if env_port else None)
+    resolved_user = user if user is not None else env_user
+    resolved_password = password if password is not None else env_password
+    resolved_database = database if database is not None else env_database
+    resolved_sslmode = sslmode if sslmode is not None else env_sslmode
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_host is None:
+            host_input = input("Host [localhost]: ").strip()
+            resolved_host = host_input if host_input else "localhost"
+
+        if resolved_port is None:
+            port_input = input("Port [5432]: ").strip()
+            resolved_port = int(port_input) if port_input else 5432
+
+        if resolved_user is None:
+            user_input = input("Username [postgres]: ").strip()
+            resolved_user = user_input if user_input else "postgres"
+
+        if resolved_password is None:
+            resolved_password = getpass.getpass("Password: ")
+
+        if resolved_database is None:
+            database_input = input("Database [postgres]: ").strip()
+            resolved_database = database_input if database_input else "postgres"
+
+    else:
+        # Non-interactive fallback defaults
+        if resolved_host is None:
+            resolved_host = "localhost"
+        if resolved_port is None:
+            resolved_port = 5432
+        if resolved_user is None:
+            resolved_user = "postgres"
+        if resolved_password is None:
+            resolved_password = ""
+        if resolved_database is None:
+            resolved_database = "postgres"
+
+    return {
+        "host": resolved_host,
+        "port": int(resolved_port),
+        "user": resolved_user,
+        "password": resolved_password,
+        "database": resolved_database,
+        "sslmode": resolved_sslmode,
+    }
+
+
