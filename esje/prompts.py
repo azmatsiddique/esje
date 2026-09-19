@@ -277,3 +277,46 @@ def resolve_postgres_credentials(
     }
 
 
+def resolve_duckdb_credentials(
+    database: Optional[str] = None,
+    read_only: Optional[bool] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve DuckDB database path and settings from arguments, env vars, or interactive prompts.
+
+    Args:
+        database: Path to DuckDB file or ':memory:'.
+        read_only: Whether to open in read-only mode.
+        interactive_prompt: Override interactive prompting behavior.
+
+    Returns:
+        Dict with keys: database, read_only.
+    """
+    env_database = os.getenv("ESJE_DUCKDB_DATABASE") or os.getenv("DUCKDB_DATABASE")
+    env_read_only = os.getenv("ESJE_DUCKDB_READ_ONLY")
+
+    resolved_database = database if database is not None else env_database
+    if read_only is not None:
+        resolved_read_only = read_only
+    elif env_read_only is not None:
+        resolved_read_only = env_read_only.lower() in ("true", "1", "yes")
+    else:
+        resolved_read_only = False
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_database is None:
+            db_input = input("Database path [:memory:]: ").strip()
+            resolved_database = db_input if db_input else ":memory:"
+    else:
+        if resolved_database is None:
+            resolved_database = ":memory:"
+
+    return {
+        "database": resolved_database,
+        "read_only": resolved_read_only,
+    }
+
+
+

@@ -7,19 +7,21 @@ import pandas as pd
 from esje.config import config
 from esje.connection import Connection, manager
 from esje.drivers.bigquery import BigQueryDriver
+from esje.drivers.duckdb import DuckDBDriver
 from esje.drivers.mysql import MySQLDriver
 from esje.drivers.postgres import PostgresDriver
 from esje.errors import ConnectionError, EsjeError, QueryError
 from esje.extension import load_ipython_extension, unload_ipython_extension
 from esje.prompts import (
     resolve_bigquery_credentials,
+    resolve_duckdb_credentials,
     resolve_mysql_credentials,
     resolve_postgres_credentials,
 )
 
 from esje.live import live_manager
 
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 
 def pause_live(widget_id: Optional[str] = None) -> None:
@@ -120,6 +122,33 @@ def connect_postgres(
 connect_postgresql = connect_postgres
 
 
+def connect_duckdb(
+    name: str = "duckdb",
+    database: Optional[str] = None,
+    read_only: Optional[bool] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_connection: Any = None,
+) -> Connection:
+    """Connect to a DuckDB database (in-memory or file) and store in connection registry."""
+    creds = resolve_duckdb_credentials(
+        database=database,
+        read_only=read_only,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = DuckDBDriver(
+        database=creds["database"],
+        read_only=creds["read_only"],
+        custom_connection=custom_connection,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    print(f"Connected to DuckDB ('{creds['database']}') as connection '{name}'.")
+    return conn
+
+
 def connect_bigquery(
     name: str = "bigquery",
     project: Optional[str] = None,
@@ -173,12 +202,14 @@ def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
         return connect_mysql(**kwargs)
     elif d in ("postgres", "postgresql", "pg", "psql"):
         return connect_postgres(**kwargs)
+    elif d in ("duckdb", "duck"):
+        return connect_duckdb(**kwargs)
     elif d in ("bigquery", "bq"):
         return connect_bigquery(**kwargs)
     else:
         raise ConnectionError(
-            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'bigquery'.",
-            hint="Use connect_postgres(), connect_mysql(), or connect_bigquery().",
+            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'duckdb', 'bigquery'.",
+            hint="Use connect_duckdb(), connect_postgres(), connect_mysql(), or connect_bigquery().",
         )
 
 
@@ -210,6 +241,7 @@ __all__ = [
     "connect_mysql",
     "connect_postgres",
     "connect_postgresql",
+    "connect_duckdb",
     "connect_bigquery",
     "connect",
     "use",
@@ -227,6 +259,7 @@ __all__ = [
     "ConnectionError",
     "QueryError",
 ]
+
 
 
 
