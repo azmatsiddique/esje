@@ -14,8 +14,10 @@
 ## ✨ Features
 
 - 🦆 **DuckDB Analytical Engine**: Embedded fast analytical SQL querying over in-memory (`:memory:`) databases, DuckDB files, CSVs, and Parquet datasets.
+- 🪳 **CockroachDB Support**: Distributed SQL database connection with interactive credential prompts and PostgreSQL wire-protocol compatibility.
 - 🐘 **Native PostgreSQL Support**: Connect to PostgreSQL databases seamlessly using interactive credential prompts, environment variables (`PGHOST`, `PGUSER`, etc.), or explicit parameters.
 - 🐬 **MySQL & MariaDB Support**: Connect to MySQL databases with pure Python drivers (`pymysql` + SQLAlchemy).
+- 🔴 **Oracle Database Support**: Connect to Oracle Database instances with `oracledb` (thin & thick modes), interactive prompts, and automatic semicolon sanitization.
 - 🌐 **Login with Google**: One-click browser OAuth2 login for BigQuery — no service account JSON required.
 - 🔒 **Zero Hardcoded Secrets**: Interactive prompts (`getpass` for passwords) and automatic `.env` / environment variable fallbacks prevent password leaks in notebooks, git commits, or exports.
 - ☁️ **Google BigQuery Native Driver**: Query BigQuery directly via browser login, Application Default Credentials (ADC), or service account key files.
@@ -31,33 +33,66 @@
 
 ## 📦 Installation
 
+### Option 1: Install via `pip` / `pip3`
+
 ```bash
 pip install esje
+# or
+pip3 install esje
 ```
 
-For **DuckDB** support:
+#### Installing Database Extras:
 
 ```bash
-pip install "esje[duckdb]"
-```
+# Oracle Database Support
+pip install "esje[oracle]"
 
-For **PostgreSQL** support:
-
-```bash
+# PostgreSQL / CockroachDB Support
 pip install "esje[postgres]"
-```
+# or
+pip install "esje[cockroachdb]"
 
-For **Google BigQuery** support (includes browser login):
+# DuckDB Support
+pip install "esje[duckdb]"
 
-```bash
+# Google BigQuery Support
 pip install "esje[bigquery]"
+
+# All Drivers & Extras
+pip install "esje[duckdb,postgres,cockroachdb,bigquery,oracle,pyarrow]"
 ```
 
-For all extras:
+---
+
+### Option 2: Install directly from Git Repository
 
 ```bash
-pip install "esje[duckdb,postgres,bigquery,pyarrow]"
+pip install git+https://github.com/azmatsiddique/esje.git
+
+# Install with Oracle / All Extras from Git:
+pip install "esje[oracle] @ git+https://github.com/azmatsiddique/esje.git"
 ```
+
+---
+
+### Option 3: Install from Built Wheel (`.whl`) File
+
+If you have built or downloaded the `.whl` wheel file in the `dist/` directory:
+
+```bash
+# Install the built wheel package
+pip install dist/esje-0.6.0-py3-none-any.whl
+
+# Or with required extras (e.g., Oracle driver)
+pip install "dist/esje-0.6.0-py3-none-any.whl[oracle]"
+```
+
+To build a fresh `.whl` wheel file from source:
+
+```bash
+python3 -m build
+```
+
 
 ---
 
@@ -99,15 +134,31 @@ conn = esje.connect(dialect="duckdb", database="analytics.duckdb")
 
 ---
 
-### 3. Connect to PostgreSQL
+### 3. Connect to CockroachDB
+
+```python
+conn = esje.connect_cockroachdb(
+    name="my_crdb",
+    host="localhost",
+    port=26257,
+    user="root",
+    database="movr"
+)
+# Aliases: connect_cockroach(), connect_crdb(), or connect(dialect="cockroachdb")
+```
+
+---
+
+### 4. Connect to PostgreSQL
 
 ```python
 conn = esje.connect_postgres(name="my_pg", host="localhost", user="postgres", database="analytics_db")
 ```
 
+
 ---
 
-### 4. Connect to MySQL
+### 5. Connect to MySQL
 
 ```python
 conn = esje.connect_mysql(name="default", host="localhost", user="root", database="app_db")
@@ -115,10 +166,26 @@ conn = esje.connect_mysql(name="default", host="localhost", user="root", databas
 
 ---
 
-### 5. Connect to Google BigQuery
+### 6. Connect to Google BigQuery
+
 
 ```python
 conn = esje.connect_bigquery(name="bq", project="my-gcp-project", auth_method="browser")
+```
+
+---
+
+### 7. Connect to Oracle Database
+
+```python
+conn = esje.connect_oracle(
+    name="my_oracle",
+    host="localhost",
+    port=1521,
+    user="system",
+    service_name="ORCLCDB" # or sid="XE"
+)
+# Aliases: connect_ora() or connect(dialect="oracle")
 ```
 
 ---
@@ -234,6 +301,18 @@ Each live widget includes interactive **▶️ Play / ⏸ Pause / ⏹ Stop** but
 | `ESJE_POSTGRES_PASSWORD` / `POSTGRES_PASSWORD` / `PGPASSWORD` | Database password | Prompt via `getpass` |
 | `ESJE_POSTGRES_DATABASE` / `POSTGRES_DATABASE` / `PGDATABASE` | Target database name | `postgres` |
 
+### Oracle Environment Variables:
+
+| Variable | Purpose | Fallback |
+|---|---|---|
+| `ESJE_ORACLE_HOST` / `ORACLE_HOST` / `ORA_HOST` | Hostname or IP | `localhost` |
+| `ESJE_ORACLE_PORT` / `ORACLE_PORT` / `ORA_PORT` | Port number | `1521` |
+| `ESJE_ORACLE_USER` / `ORACLE_USER` / `ORA_USER` | Database username | `system` |
+| `ESJE_ORACLE_PASSWORD` / `ORACLE_PASSWORD` / `ORA_PASSWORD` | Database password | Prompt via `getpass` |
+| `ESJE_ORACLE_SERVICE_NAME` / `ORACLE_SERVICE_NAME` | Oracle Service Name | `None` |
+| `ESJE_ORACLE_SID` / `ORACLE_SID` | Oracle SID | `None` |
+| `ESJE_ORACLE_THICK_MODE` | Enable Oracle Thick Client Mode (`true`/`false`) | `False` |
+
 ---
 
 ## ⚙️ Configuration Options
@@ -267,6 +346,7 @@ esje.close_all()         # Close all connections + stop live widgets
 - [x] **PostgreSQL** ✅ *(Released in v0.4.0)*
 - [x] **MySQL & MariaDB** ✅
 - [x] **Google BigQuery** ✅
+- [x] **Oracle Database** ✅
 - [ ] **SQLite**
 - [ ] **Snowflake, Databricks, Redshift, ClickHouse**
 

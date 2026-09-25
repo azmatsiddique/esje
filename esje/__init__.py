@@ -7,21 +7,26 @@ import pandas as pd
 from esje.config import config
 from esje.connection import Connection, manager
 from esje.drivers.bigquery import BigQueryDriver
+from esje.drivers.cockroachdb import CockroachDBDriver
 from esje.drivers.duckdb import DuckDBDriver
 from esje.drivers.mysql import MySQLDriver
+from esje.drivers.oracle import OracleDriver
 from esje.drivers.postgres import PostgresDriver
 from esje.errors import ConnectionError, EsjeError, QueryError
 from esje.extension import load_ipython_extension, unload_ipython_extension
 from esje.prompts import (
     resolve_bigquery_credentials,
+    resolve_cockroachdb_credentials,
     resolve_duckdb_credentials,
     resolve_mysql_credentials,
+    resolve_oracle_credentials,
     resolve_postgres_credentials,
 )
 
 from esje.live import live_manager
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
+
 
 
 def pause_live(widget_id: Optional[str] = None) -> None:
@@ -122,6 +127,49 @@ def connect_postgres(
 connect_postgresql = connect_postgres
 
 
+def connect_cockroachdb(
+    name: str = "cockroachdb",
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    sslmode: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to a CockroachDB database and store in connection registry."""
+    creds = resolve_cockroachdb_credentials(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        sslmode=sslmode,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = CockroachDBDriver(
+        host=creds["host"],
+        port=creds["port"],
+        user=creds["user"],
+        password=creds["password"],
+        database=creds["database"],
+        sslmode=creds["sslmode"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    print(f"Connected to CockroachDB on {creds['host']}:{creds['port']} as connection '{name}'.")
+    return conn
+
+
+connect_cockroach = connect_cockroachdb
+connect_crdb = connect_cockroachdb
+
+
 def connect_duckdb(
     name: str = "duckdb",
     database: Optional[str] = None,
@@ -195,6 +243,56 @@ def connect_bigquery(
     return conn
 
 
+def connect_oracle(
+    name: str = "oracle",
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    service_name: Optional[str] = None,
+    sid: Optional[str] = None,
+    database: Optional[str] = None,
+    thick_mode: Optional[bool] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to an Oracle Database and store in connection registry."""
+    creds = resolve_oracle_credentials(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        service_name=service_name,
+        sid=sid,
+        database=database,
+        thick_mode=thick_mode,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = OracleDriver(
+        host=creds["host"],
+        port=creds["port"],
+        user=creds["user"],
+        password=creds["password"],
+        service_name=creds["service_name"],
+        sid=creds["sid"],
+        database=creds["database"],
+        thick_mode=creds["thick_mode"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    target = creds["service_name"] or creds["sid"] or creds["database"] or ""
+    target_info = f" ({target})" if target else ""
+    print(f"Connected to Oracle Database{target_info} on {creds['host']}:{creds['port']} as connection '{name}'.")
+    return conn
+
+
+connect_ora = connect_oracle
+
+
 def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
     """Generic connection helper dispatching to dialect-specific connector."""
     d = dialect.lower()
@@ -202,14 +300,18 @@ def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
         return connect_mysql(**kwargs)
     elif d in ("postgres", "postgresql", "pg", "psql"):
         return connect_postgres(**kwargs)
+    elif d in ("cockroachdb", "cockroach", "crdb", "cockroach-db"):
+        return connect_cockroachdb(**kwargs)
     elif d in ("duckdb", "duck"):
         return connect_duckdb(**kwargs)
     elif d in ("bigquery", "bq"):
         return connect_bigquery(**kwargs)
+    elif d in ("oracle", "ora", "oracledb"):
+        return connect_oracle(**kwargs)
     else:
         raise ConnectionError(
-            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'duckdb', 'bigquery'.",
-            hint="Use connect_duckdb(), connect_postgres(), connect_mysql(), or connect_bigquery().",
+            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'cockroachdb', 'duckdb', 'bigquery', 'oracle'.",
+            hint="Use connect_cockroachdb(), connect_duckdb(), connect_postgres(), connect_mysql(), connect_bigquery(), or connect_oracle().",
         )
 
 
@@ -241,8 +343,13 @@ __all__ = [
     "connect_mysql",
     "connect_postgres",
     "connect_postgresql",
+    "connect_cockroachdb",
+    "connect_cockroach",
+    "connect_crdb",
     "connect_duckdb",
     "connect_bigquery",
+    "connect_oracle",
+    "connect_ora",
     "connect",
     "use",
     "connections",
@@ -259,6 +366,7 @@ __all__ = [
     "ConnectionError",
     "QueryError",
 ]
+
 
 
 

@@ -319,4 +319,185 @@ def resolve_duckdb_credentials(
     }
 
 
+def resolve_cockroachdb_credentials(
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    sslmode: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve CockroachDB connection credentials from arguments, env vars, or interactive prompts.
+
+    Args:
+        host: Hostname or IP.
+        port: Port number.
+        user: Username.
+        password: Password.
+        database: Database name.
+        sslmode: SSL connection mode (e.g. 'require', 'disable').
+        interactive_prompt: Override interactive prompting behavior.
+
+    Returns:
+        Dict with keys: host, port, user, password, database, sslmode.
+    """
+    env_host = os.getenv("ESJE_COCKROACH_HOST") or os.getenv("COCKROACH_HOST")
+    env_port = os.getenv("ESJE_COCKROACH_PORT") or os.getenv("COCKROACH_PORT")
+    env_user = os.getenv("ESJE_COCKROACH_USER") or os.getenv("COCKROACH_USER")
+    env_password = os.getenv("ESJE_COCKROACH_PASSWORD") or os.getenv("COCKROACH_PASSWORD")
+    env_database = os.getenv("ESJE_COCKROACH_DATABASE") or os.getenv("COCKROACH_DATABASE")
+    env_sslmode = os.getenv("ESJE_COCKROACH_SSLMODE") or os.getenv("COCKROACH_SSLMODE")
+
+    resolved_host = host if host is not None else env_host
+    resolved_port = port if port is not None else (int(env_port) if env_port else None)
+    resolved_user = user if user is not None else env_user
+    resolved_password = password if password is not None else env_password
+    resolved_database = database if database is not None else env_database
+    resolved_sslmode = sslmode if sslmode is not None else env_sslmode
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_host is None:
+            host_input = input("Host [localhost]: ").strip()
+            resolved_host = host_input if host_input else "localhost"
+
+        if resolved_port is None:
+            port_input = input("Port [26257]: ").strip()
+            resolved_port = int(port_input) if port_input else 26257
+
+        if resolved_user is None:
+            user_input = input("Username [root]: ").strip()
+            resolved_user = user_input if user_input else "root"
+
+        if resolved_password is None:
+            resolved_password = getpass.getpass("Password: ")
+
+        if resolved_database is None:
+            database_input = input("Database [defaultdb]: ").strip()
+            resolved_database = database_input if database_input else "defaultdb"
+
+    else:
+        # Non-interactive fallback defaults
+        if resolved_host is None:
+            resolved_host = "localhost"
+        if resolved_port is None:
+            resolved_port = 26257
+        if resolved_user is None:
+            resolved_user = "root"
+        if resolved_password is None:
+            resolved_password = ""
+        if resolved_database is None:
+            resolved_database = "defaultdb"
+
+    return {
+        "host": resolved_host,
+        "port": int(resolved_port),
+        "user": resolved_user,
+        "password": resolved_password,
+        "database": resolved_database,
+        "sslmode": resolved_sslmode,
+    }
+
+
+def resolve_oracle_credentials(
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    service_name: Optional[str] = None,
+    sid: Optional[str] = None,
+    database: Optional[str] = None,
+    thick_mode: Optional[bool] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve Oracle Database connection credentials from arguments, env vars, or interactive prompts.
+
+    Args:
+        host: Hostname or IP.
+        port: Port number.
+        user: Username.
+        password: Password.
+        service_name: Oracle Service Name.
+        sid: Oracle System Identifier.
+        database: Alias for service_name/sid.
+        thick_mode: Enable Oracle thick client mode.
+        interactive_prompt: Override interactive prompting behavior.
+
+    Returns:
+        Dict with keys: host, port, user, password, service_name, sid, database, thick_mode.
+    """
+    env_host = os.getenv("ESJE_ORACLE_HOST") or os.getenv("ORACLE_HOST") or os.getenv("ORA_HOST")
+    env_port = os.getenv("ESJE_ORACLE_PORT") or os.getenv("ORACLE_PORT") or os.getenv("ORA_PORT")
+    env_user = os.getenv("ESJE_ORACLE_USER") or os.getenv("ORACLE_USER") or os.getenv("ORA_USER")
+    env_password = os.getenv("ESJE_ORACLE_PASSWORD") or os.getenv("ORACLE_PASSWORD") or os.getenv("ORA_PASSWORD")
+    env_service_name = os.getenv("ESJE_ORACLE_SERVICE_NAME") or os.getenv("ORACLE_SERVICE_NAME")
+    env_sid = os.getenv("ESJE_ORACLE_SID") or os.getenv("ORACLE_SID")
+    env_database = os.getenv("ESJE_ORACLE_DATABASE") or os.getenv("ORACLE_DATABASE") or os.getenv("ORADATABASE")
+    env_thick_mode = os.getenv("ESJE_ORACLE_THICK_MODE")
+
+    resolved_host = host if host is not None else env_host
+    resolved_port = port if port is not None else (int(env_port) if env_port else None)
+    resolved_user = user if user is not None else env_user
+    resolved_password = password if password is not None else env_password
+    resolved_service_name = service_name if service_name is not None else env_service_name
+    resolved_sid = sid if sid is not None else env_sid
+    resolved_database = database if database is not None else env_database
+
+    if thick_mode is not None:
+        resolved_thick_mode = thick_mode
+    elif env_thick_mode is not None:
+        resolved_thick_mode = env_thick_mode.lower() in ("true", "1", "yes")
+    else:
+        resolved_thick_mode = False
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_host is None:
+            host_input = input("Host [localhost]: ").strip()
+            resolved_host = host_input if host_input else "localhost"
+
+        if resolved_port is None:
+            port_input = input("Port [1521]: ").strip()
+            resolved_port = int(port_input) if port_input else 1521
+
+        if resolved_user is None:
+            user_input = input("Username [system]: ").strip()
+            resolved_user = user_input if user_input else "system"
+
+        if resolved_password is None:
+            resolved_password = getpass.getpass("Password: ")
+
+        if resolved_service_name is None and resolved_sid is None and resolved_database is None:
+            target_input = input("Service Name or SID [optional, e.g. XE or ORCLCDB]: ").strip()
+            if target_input:
+                resolved_service_name = target_input
+
+    else:
+        # Non-interactive fallback defaults
+        if resolved_host is None:
+            resolved_host = "localhost"
+        if resolved_port is None:
+            resolved_port = 1521
+        if resolved_user is None:
+            resolved_user = "system"
+        if resolved_password is None:
+            resolved_password = ""
+
+    return {
+        "host": resolved_host,
+        "port": int(resolved_port),
+        "user": resolved_user,
+        "password": resolved_password,
+        "service_name": resolved_service_name,
+        "sid": resolved_sid,
+        "database": resolved_database,
+        "thick_mode": resolved_thick_mode,
+    }
+
+
+
+
 
