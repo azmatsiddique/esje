@@ -14,6 +14,7 @@
 ## ✨ Features
 
 - 🦆 **DuckDB Analytical Engine**: Embedded fast analytical SQL querying over in-memory (`:memory:`) databases, DuckDB files, CSVs, and Parquet datasets.
+- ⚡ **SQLite Database Engine**: Zero-dependency embedded querying over in-memory (`:memory:`) or local SQLite files (`.db`, `.sqlite`), including `PRAGMA` inspection.
 - 🪳 **CockroachDB Support**: Distributed SQL database connection with interactive credential prompts and PostgreSQL wire-protocol compatibility.
 - 🐘 **Native PostgreSQL Support**: Connect to PostgreSQL databases seamlessly using interactive credential prompts, environment variables (`PGHOST`, `PGUSER`, etc.), or explicit parameters.
 - 🐬 **MySQL & MariaDB Support**: Connect to MySQL databases with pure Python drivers (`pymysql` + SQLAlchemy).
@@ -190,6 +191,19 @@ conn = esje.connect_oracle(
 
 ---
 
+### 8. Connect to SQLite Database
+
+```python
+# In-memory database (default)
+conn = esje.connect_sqlite()
+
+# Local SQLite file database
+conn = esje.connect_sqlite(name="my_sqlite", database="analytics.db", read_only=False)
+# Aliases: connect_sqlite3() or connect(dialect="sqlite")
+```
+
+---
+
 ## 💡 Usage Examples
 
 ### DuckDB Querying (Parquet / CSV Querying)
@@ -301,6 +315,13 @@ Each live widget includes interactive **▶️ Play / ⏸ Pause / ⏹ Stop** but
 | `ESJE_POSTGRES_PASSWORD` / `POSTGRES_PASSWORD` / `PGPASSWORD` | Database password | Prompt via `getpass` |
 | `ESJE_POSTGRES_DATABASE` / `POSTGRES_DATABASE` / `PGDATABASE` | Target database name | `postgres` |
 
+### SQLite Environment Variables:
+
+| Variable | Purpose | Fallback |
+|---|---|---|
+| `ESJE_SQLITE_DATABASE` / `SQLITE_DATABASE` | Path to SQLite file or `:memory:` | `:memory:` |
+| `ESJE_SQLITE_READ_ONLY` | Read-only mode (`true`/`false`) | `False` |
+
 ### Oracle Environment Variables:
 
 | Variable | Purpose | Fallback |
@@ -347,7 +368,7 @@ esje.close_all()         # Close all connections + stop live widgets
 - [x] **MySQL & MariaDB** ✅
 - [x] **Google BigQuery** ✅
 - [x] **Oracle Database** ✅
-- [ ] **SQLite**
+- [x] **SQLite** ✅ *(Released in v0.7.0)*
 - [ ] **Snowflake, Databricks, Redshift, ClickHouse**
 
 ---

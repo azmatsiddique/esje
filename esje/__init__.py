@@ -12,6 +12,7 @@ from esje.drivers.duckdb import DuckDBDriver
 from esje.drivers.mysql import MySQLDriver
 from esje.drivers.oracle import OracleDriver
 from esje.drivers.postgres import PostgresDriver
+from esje.drivers.sqlite import SQLiteDriver
 from esje.errors import ConnectionError, EsjeError, QueryError
 from esje.extension import load_ipython_extension, unload_ipython_extension
 from esje.prompts import (
@@ -21,11 +22,12 @@ from esje.prompts import (
     resolve_mysql_credentials,
     resolve_oracle_credentials,
     resolve_postgres_credentials,
+    resolve_sqlite_credentials,
 )
 
 from esje.live import live_manager
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 
@@ -293,6 +295,36 @@ def connect_oracle(
 connect_ora = connect_oracle
 
 
+def connect_sqlite(
+    name: str = "sqlite",
+    database: Optional[str] = None,
+    read_only: Optional[bool] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to a SQLite database (in-memory or file) and store in connection registry."""
+    creds = resolve_sqlite_credentials(
+        database=database,
+        read_only=read_only,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = SQLiteDriver(
+        database=creds["database"],
+        read_only=creds["read_only"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    print(f"Connected to SQLite ('{creds['database']}') as connection '{name}'.")
+    return conn
+
+
+connect_sqlite3 = connect_sqlite
+
+
 def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
     """Generic connection helper dispatching to dialect-specific connector."""
     d = dialect.lower()
@@ -308,10 +340,12 @@ def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
         return connect_bigquery(**kwargs)
     elif d in ("oracle", "ora", "oracledb"):
         return connect_oracle(**kwargs)
+    elif d in ("sqlite", "sqlite3", "sqldb"):
+        return connect_sqlite(**kwargs)
     else:
         raise ConnectionError(
-            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'cockroachdb', 'duckdb', 'bigquery', 'oracle'.",
-            hint="Use connect_cockroachdb(), connect_duckdb(), connect_postgres(), connect_mysql(), connect_bigquery(), or connect_oracle().",
+            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'cockroachdb', 'duckdb', 'bigquery', 'oracle', 'sqlite'.",
+            hint="Use connect_sqlite(), connect_oracle(), connect_cockroachdb(), connect_duckdb(), connect_postgres(), connect_mysql(), or connect_bigquery().",
         )
 
 
@@ -350,6 +384,8 @@ __all__ = [
     "connect_bigquery",
     "connect_oracle",
     "connect_ora",
+    "connect_sqlite",
+    "connect_sqlite3",
     "connect",
     "use",
     "connections",
