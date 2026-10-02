@@ -137,8 +137,9 @@ This driver-interface split is what makes Postgres (v2) additive: implement `dri
 | M1 — MVP | `%load_ext esje`, `connect_mysql()` interactive prompt, `%sql`/`%%sql` against a single connection, DataFrame results, basic error handling |
 | M2 | Multiple named connections, `-c` flag, `esje.use()`, env var / `.env` support |
 | M3 | Config (`max_display_rows`, `verbose_errors`), better error messages, docs + PyPI publish |
-| M4 (v2) | PostgreSQL driver, generalize `connect()` to dispatch by DB type |
-| M5 (stretch) | Query history (`esje.history()`), `%sql --params` for parameterized queries, `.sql` file execution |
+| M4 (v2) | PostgreSQL, CockroachDB, DuckDB, BigQuery, Oracle, SQLite drivers, generalize `connect()` to dispatch by DB type |
+| M5 (v3) | Snowflake, Databricks, Redshift drivers support |
+| M6 (stretch) | Query history (`esje.history()`), `%sql --params` for parameterized queries, `.sql` file execution |
 
 ## 12. Open Questions
 - Should `connect_mysql()` prompting happen even when called non-interactively (e.g. in a script), or auto-detect and require explicit params/env vars in that case?

@@ -540,6 +540,246 @@ def resolve_sqlite_credentials(
     }
 
 
+def resolve_snowflake_credentials(
+    account: Optional[str] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    schema: Optional[str] = None,
+    warehouse: Optional[str] = None,
+    role: Optional[str] = None,
+    authenticator: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve Snowflake connection credentials from arguments, env vars, or interactive prompts.
+
+    Args:
+        account: Snowflake account identifier.
+        user: Username.
+        password: Password.
+        database: Database name.
+        schema: Schema name.
+        warehouse: Virtual Warehouse name.
+        role: Role name.
+        authenticator: Authenticator method (e.g. 'externalbrowser').
+        interactive_prompt: Override interactive prompting behavior.
+
+    Returns:
+        Dict with resolved keys: account, user, password, database, schema, warehouse, role, authenticator.
+    """
+    env_account = os.getenv("ESJE_SNOWFLAKE_ACCOUNT") or os.getenv("SNOWFLAKE_ACCOUNT") or os.getenv("SF_ACCOUNT")
+    env_user = os.getenv("ESJE_SNOWFLAKE_USER") or os.getenv("SNOWFLAKE_USER") or os.getenv("SF_USER")
+    env_password = os.getenv("ESJE_SNOWFLAKE_PASSWORD") or os.getenv("SNOWFLAKE_PASSWORD") or os.getenv("SF_PASSWORD")
+    env_database = os.getenv("ESJE_SNOWFLAKE_DATABASE") or os.getenv("SNOWFLAKE_DATABASE") or os.getenv("SF_DATABASE")
+    env_schema = os.getenv("ESJE_SNOWFLAKE_SCHEMA") or os.getenv("SNOWFLAKE_SCHEMA") or os.getenv("SF_SCHEMA")
+    env_warehouse = os.getenv("ESJE_SNOWFLAKE_WAREHOUSE") or os.getenv("SNOWFLAKE_WAREHOUSE") or os.getenv("SF_WAREHOUSE")
+    env_role = os.getenv("ESJE_SNOWFLAKE_ROLE") or os.getenv("SNOWFLAKE_ROLE") or os.getenv("SF_ROLE")
+    env_authenticator = os.getenv("ESJE_SNOWFLAKE_AUTHENTICATOR") or os.getenv("SNOWFLAKE_AUTHENTICATOR")
+
+    resolved_account = account if account is not None else env_account
+    resolved_user = user if user is not None else env_user
+    resolved_password = password if password is not None else env_password
+    resolved_database = database if database is not None else env_database
+    resolved_schema = schema if schema is not None else env_schema
+    resolved_warehouse = warehouse if warehouse is not None else env_warehouse
+    resolved_role = role if role is not None else env_role
+    resolved_authenticator = authenticator if authenticator is not None else env_authenticator
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_account is None:
+            resolved_account = input("Snowflake Account (e.g. org-account): ").strip()
+
+        if resolved_user is None:
+            resolved_user = input("Username: ").strip()
+
+        if resolved_password is None and resolved_authenticator != "externalbrowser":
+            resolved_password = getpass.getpass("Password: ")
+
+        if resolved_database is None:
+            db_in = input("Database [optional]: ").strip()
+            resolved_database = db_in if db_in else ""
+
+        if resolved_warehouse is None:
+            wh_in = input("Warehouse [optional]: ").strip()
+            resolved_warehouse = wh_in if wh_in else ""
+
+        if resolved_role is None:
+            role_in = input("Role [optional]: ").strip()
+            resolved_role = role_in if role_in else ""
+
+    else:
+        if resolved_account is None:
+            resolved_account = ""
+        if resolved_user is None:
+            resolved_user = ""
+        if resolved_password is None:
+            resolved_password = ""
+        if resolved_database is None:
+            resolved_database = ""
+        if resolved_schema is None:
+            resolved_schema = "PUBLIC"
+        if resolved_warehouse is None:
+            resolved_warehouse = ""
+        if resolved_role is None:
+            resolved_role = ""
+        if resolved_authenticator is None:
+            resolved_authenticator = ""
+
+    return {
+        "account": resolved_account,
+        "user": resolved_user,
+        "password": resolved_password,
+        "database": resolved_database,
+        "schema": resolved_schema or "PUBLIC",
+        "warehouse": resolved_warehouse,
+        "role": resolved_role,
+        "authenticator": resolved_authenticator or "",
+    }
+
+
+def resolve_databricks_credentials(
+    host: Optional[str] = None,
+    token: Optional[str] = None,
+    http_path: Optional[str] = None,
+    catalog: Optional[str] = None,
+    schema: Optional[str] = None,
+    port: Optional[int] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve Databricks connection credentials from arguments, env vars, or interactive prompts."""
+    env_host = os.getenv("ESJE_DATABRICKS_HOST") or os.getenv("DATABRICKS_HOST") or os.getenv("DATABRICKS_SERVER_HOSTNAME")
+    env_token = os.getenv("ESJE_DATABRICKS_TOKEN") or os.getenv("DATABRICKS_TOKEN")
+    env_http_path = os.getenv("ESJE_DATABRICKS_HTTP_PATH") or os.getenv("DATABRICKS_HTTP_PATH")
+    env_catalog = os.getenv("ESJE_DATABRICKS_CATALOG") or os.getenv("DATABRICKS_CATALOG") or os.getenv("DATABRICKS_DATABASE")
+    env_schema = os.getenv("ESJE_DATABRICKS_SCHEMA") or os.getenv("DATABRICKS_SCHEMA")
+    env_port = os.getenv("ESJE_DATABRICKS_PORT") or os.getenv("DATABRICKS_PORT")
+
+    resolved_host = host if host is not None else env_host
+    resolved_token = token if token is not None else env_token
+    resolved_http_path = http_path if http_path is not None else env_http_path
+    resolved_catalog = catalog if catalog is not None else env_catalog
+    resolved_schema = schema if schema is not None else env_schema
+    resolved_port = port if port is not None else (int(env_port) if env_port else None)
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_host is None:
+            resolved_host = input("Databricks Hostname (e.g. adb-xxx.cloud.databricks.com): ").strip()
+
+        if resolved_http_path is None:
+            resolved_http_path = input("HTTP Path (e.g. /sql/1.0/warehouses/...): ").strip()
+
+        if resolved_token is None:
+            resolved_token = getpass.getpass("Personal Access Token: ")
+
+        if resolved_catalog is None:
+            cat_in = input("Catalog [optional]: ").strip()
+            resolved_catalog = cat_in if cat_in else ""
+
+        if resolved_schema is None:
+            sch_in = input("Schema [optional]: ").strip()
+            resolved_schema = sch_in if sch_in else ""
+
+        if resolved_port is None:
+            port_in = input("Port [443]: ").strip()
+            resolved_port = int(port_in) if port_in else 443
+    else:
+        if resolved_host is None:
+            resolved_host = ""
+        if resolved_token is None:
+            resolved_token = ""
+        if resolved_http_path is None:
+            resolved_http_path = ""
+        if resolved_catalog is None:
+            resolved_catalog = ""
+        if resolved_schema is None:
+            resolved_schema = ""
+        if resolved_port is None:
+            resolved_port = 443
+
+    return {
+        "host": resolved_host,
+        "token": resolved_token,
+        "http_path": resolved_http_path,
+        "catalog": resolved_catalog,
+        "schema": resolved_schema,
+        "port": int(resolved_port),
+    }
+
+
+def resolve_redshift_credentials(
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    sslmode: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+) -> Dict[str, Any]:
+    """Resolve Amazon Redshift connection credentials from arguments, env vars, or interactive prompts."""
+    env_host = os.getenv("ESJE_REDSHIFT_HOST") or os.getenv("REDSHIFT_HOST") or os.getenv("AWS_REDSHIFT_HOST")
+    env_port = os.getenv("ESJE_REDSHIFT_PORT") or os.getenv("REDSHIFT_PORT") or os.getenv("AWS_REDSHIFT_PORT")
+    env_user = os.getenv("ESJE_REDSHIFT_USER") or os.getenv("REDSHIFT_USER") or os.getenv("AWS_REDSHIFT_USER")
+    env_password = os.getenv("ESJE_REDSHIFT_PASSWORD") or os.getenv("REDSHIFT_PASSWORD") or os.getenv("AWS_REDSHIFT_PASSWORD")
+    env_database = os.getenv("ESJE_REDSHIFT_DATABASE") or os.getenv("REDSHIFT_DATABASE") or os.getenv("AWS_REDSHIFT_DATABASE")
+    env_sslmode = os.getenv("ESJE_REDSHIFT_SSLMODE") or os.getenv("REDSHIFT_SSLMODE")
+
+    resolved_host = host if host is not None else env_host
+    resolved_port = port if port is not None else (int(env_port) if env_port else None)
+    resolved_user = user if user is not None else env_user
+    resolved_password = password if password is not None else env_password
+    resolved_database = database if database is not None else env_database
+    resolved_sslmode = sslmode if sslmode is not None else env_sslmode
+
+    should_prompt = interactive_prompt if interactive_prompt is not None else is_interactive()
+
+    if should_prompt:
+        if resolved_host is None:
+            host_in = input("Redshift Host [localhost]: ").strip()
+            resolved_host = host_in if host_in else "localhost"
+
+        if resolved_port is None:
+            port_in = input("Port [5439]: ").strip()
+            resolved_port = int(port_in) if port_in else 5439
+
+        if resolved_user is None:
+            user_in = input("Username [awsuser]: ").strip()
+            resolved_user = user_in if user_in else "awsuser"
+
+        if resolved_password is None:
+            resolved_password = getpass.getpass("Password: ")
+
+        if resolved_database is None:
+            db_in = input("Database [dev]: ").strip()
+            resolved_database = db_in if db_in else "dev"
+
+    else:
+        if resolved_host is None:
+            resolved_host = "localhost"
+        if resolved_port is None:
+            resolved_port = 5439
+        if resolved_user is None:
+            resolved_user = "awsuser"
+        if resolved_password is None:
+            resolved_password = ""
+        if resolved_database is None:
+            resolved_database = "dev"
+
+    return {
+        "host": resolved_host,
+        "port": int(resolved_port),
+        "user": resolved_user,
+        "password": resolved_password,
+        "database": resolved_database,
+        "sslmode": resolved_sslmode,
+    }
+
+
+
+
 
 
 

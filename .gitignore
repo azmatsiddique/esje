@@ -43,3 +43,7 @@ htmlcov/
 # MacOS
 .DS_Store
 *.ipynb
+*.duckdb
+*.duckdb.wal
+my_duck*
+

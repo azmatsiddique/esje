@@ -13,6 +13,9 @@
 
 ## ✨ Features
 
+- ❄️ **Snowflake Data Cloud**: Connect to Snowflake with interactive prompts or env vars using `snowflake-sqlalchemy`.
+- 🧱 **Databricks SQL**: Connect to Databricks SQL Warehouses or clusters using `databricks-sql-connector`.
+- 🟥 **Amazon Redshift**: Connect to Redshift clusters using `sqlalchemy-redshift`.
 - 🦆 **DuckDB Analytical Engine**: Embedded fast analytical SQL querying over in-memory (`:memory:`) databases, DuckDB files, CSVs, and Parquet datasets.
 - ⚡ **SQLite Database Engine**: Zero-dependency embedded querying over in-memory (`:memory:`) or local SQLite files (`.db`, `.sqlite`), including `PRAGMA` inspection.
 - 🪳 **CockroachDB Support**: Distributed SQL database connection with interactive credential prompts and PostgreSQL wire-protocol compatibility.
@@ -59,8 +62,13 @@ pip install "esje[duckdb]"
 # Google BigQuery Support
 pip install "esje[bigquery]"
 
+# Snowflake, Databricks, Redshift Support
+pip install "esje[snowflake]"
+pip install "esje[databricks]"
+pip install "esje[redshift]"
+
 # All Drivers & Extras
-pip install "esje[duckdb,postgres,cockroachdb,bigquery,oracle,pyarrow]"
+pip install "esje[duckdb,postgres,cockroachdb,bigquery,oracle,snowflake,databricks,redshift,pyarrow]"
 ```
 
 ---

@@ -68,6 +68,26 @@ oracledb = [
 ]
 sqlite = []
 sqlite3 = []
+snowflake = [
+    "snowflake-sqlalchemy>=1.4.0",
+]
+sf = [
+    "snowflake-sqlalchemy>=1.4.0",
+]
+databricks = [
+    "databricks-sql-connector>=3.0.0",
+]
+dbx = [
+    "databricks-sql-connector>=3.0.0",
+]
+redshift = [
+    "sqlalchemy-redshift>=0.8.0",
+    "psycopg2-binary>=2.9.0",
+]
+rs = [
+    "sqlalchemy-redshift>=0.8.0",
+    "psycopg2-binary>=2.9.0",
+]
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=3.0.0",

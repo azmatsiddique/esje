@@ -8,22 +8,29 @@ from esje.config import config
 from esje.connection import Connection, manager
 from esje.drivers.bigquery import BigQueryDriver
 from esje.drivers.cockroachdb import CockroachDBDriver
+from esje.drivers.databricks import DatabricksDriver
 from esje.drivers.duckdb import DuckDBDriver
 from esje.drivers.mysql import MySQLDriver
 from esje.drivers.oracle import OracleDriver
 from esje.drivers.postgres import PostgresDriver
+from esje.drivers.redshift import RedshiftDriver
 from esje.drivers.sqlite import SQLiteDriver
+from esje.drivers.snowflake import SnowflakeDriver
 from esje.errors import ConnectionError, EsjeError, QueryError
 from esje.extension import load_ipython_extension, unload_ipython_extension
 from esje.prompts import (
     resolve_bigquery_credentials,
     resolve_cockroachdb_credentials,
+    resolve_databricks_credentials,
     resolve_duckdb_credentials,
     resolve_mysql_credentials,
     resolve_oracle_credentials,
     resolve_postgres_credentials,
+    resolve_redshift_credentials,
     resolve_sqlite_credentials,
+    resolve_snowflake_credentials,
 )
+
 
 from esje.live import live_manager
 
@@ -325,6 +332,143 @@ def connect_sqlite(
 connect_sqlite3 = connect_sqlite
 
 
+def connect_snowflake(
+    name: str = "snowflake",
+    account: Optional[str] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    schema: Optional[str] = None,
+    warehouse: Optional[str] = None,
+    role: Optional[str] = None,
+    authenticator: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to Snowflake and store in connection registry."""
+    creds = resolve_snowflake_credentials(
+        account=account,
+        user=user,
+        password=password,
+        database=database,
+        schema=schema,
+        warehouse=warehouse,
+        role=role,
+        authenticator=authenticator,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = SnowflakeDriver(
+        account=creds["account"],
+        user=creds["user"],
+        password=creds["password"],
+        database=creds["database"],
+        schema=creds["schema"],
+        warehouse=creds["warehouse"],
+        role=creds["role"],
+        authenticator=creds["authenticator"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    target = f"{creds['account']}" + (f" ({creds['database']})" if creds['database'] else "")
+    print(f"Connected to Snowflake '{target}' as connection '{name}'.")
+    return conn
+
+
+connect_sf = connect_snowflake
+connect_snowflakedb = connect_snowflake
+
+
+def connect_databricks(
+    name: str = "databricks",
+    host: Optional[str] = None,
+    token: Optional[str] = None,
+    http_path: Optional[str] = None,
+    catalog: Optional[str] = None,
+    schema: Optional[str] = None,
+    port: Optional[int] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to Databricks and store in connection registry."""
+    creds = resolve_databricks_credentials(
+        host=host,
+        token=token,
+        http_path=http_path,
+        catalog=catalog,
+        schema=schema,
+        port=port,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = DatabricksDriver(
+        host=creds["host"],
+        token=creds["token"],
+        http_path=creds["http_path"],
+        catalog=creds["catalog"],
+        schema=creds["schema"],
+        port=creds["port"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    cat_str = f" ({creds['catalog']})" if creds['catalog'] else ""
+    print(f"Connected to Databricks host '{creds['host']}'{cat_str} as connection '{name}'.")
+    return conn
+
+
+connect_dbx = connect_databricks
+connect_sparksql = connect_databricks
+
+
+def connect_redshift(
+    name: str = "redshift",
+    host: Optional[str] = None,
+    port: Optional[int] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    sslmode: Optional[str] = None,
+    interactive_prompt: Optional[bool] = None,
+    custom_engine: Any = None,
+) -> Connection:
+    """Connect to Amazon Redshift and store in connection registry."""
+    creds = resolve_redshift_credentials(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        sslmode=sslmode,
+        interactive_prompt=interactive_prompt,
+    )
+
+    driver = RedshiftDriver(
+        host=creds["host"],
+        port=creds["port"],
+        user=creds["user"],
+        password=creds["password"],
+        database=creds["database"],
+        sslmode=creds["sslmode"],
+        custom_engine=custom_engine,
+    )
+    driver.connect()
+
+    conn = Connection(name=name, driver=driver)
+    manager.add(conn)
+    print(f"Connected to Amazon Redshift on {creds['host']}:{creds['port']} as connection '{name}'.")
+    return conn
+
+
+connect_rs = connect_redshift
+connect_aws_redshift = connect_redshift
+
+
 def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
     """Generic connection helper dispatching to dialect-specific connector."""
     d = dialect.lower()
@@ -342,10 +486,16 @@ def connect(dialect: str = "mysql", **kwargs: Any) -> Connection:
         return connect_oracle(**kwargs)
     elif d in ("sqlite", "sqlite3", "sqldb"):
         return connect_sqlite(**kwargs)
+    elif d in ("snowflake", "sf", "snowflakedb"):
+        return connect_snowflake(**kwargs)
+    elif d in ("databricks", "dbx", "sparksql"):
+        return connect_databricks(**kwargs)
+    elif d in ("redshift", "rs", "aws_redshift"):
+        return connect_redshift(**kwargs)
     else:
         raise ConnectionError(
-            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'cockroachdb', 'duckdb', 'bigquery', 'oracle', 'sqlite'.",
-            hint="Use connect_sqlite(), connect_oracle(), connect_cockroachdb(), connect_duckdb(), connect_postgres(), connect_mysql(), or connect_bigquery().",
+            f"Unsupported dialect '{dialect}'. Supported dialects: 'mysql', 'postgres', 'cockroachdb', 'duckdb', 'bigquery', 'oracle', 'sqlite', 'snowflake', 'databricks', 'redshift'.",
+            hint="Use connect_snowflake(), connect_databricks(), connect_redshift(), connect_sqlite(), connect_oracle(), connect_cockroachdb(), connect_duckdb(), connect_postgres(), connect_mysql(), or connect_bigquery().",
         )
 
 
@@ -386,6 +536,15 @@ __all__ = [
     "connect_ora",
     "connect_sqlite",
     "connect_sqlite3",
+    "connect_snowflake",
+    "connect_sf",
+    "connect_snowflakedb",
+    "connect_databricks",
+    "connect_dbx",
+    "connect_sparksql",
+    "connect_redshift",
+    "connect_rs",
+    "connect_aws_redshift",
     "connect",
     "use",
     "connections",
@@ -402,6 +561,7 @@ __all__ = [
     "ConnectionError",
     "QueryError",
 ]
+
 
 
 
