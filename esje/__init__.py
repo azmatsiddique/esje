@@ -34,7 +34,7 @@ from esje.prompts import (
 
 from esje.live import live_manager
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 
 
