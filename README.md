@@ -377,8 +377,8 @@ esje.close_all()         # Close all connections + stop live widgets
 - [x] **Google BigQuery** ✅
 - [x] **Oracle Database** ✅
 - [x] **SQLite** ✅ *(Released in v0.7.0)*
-- [ ] **Snowflake, Databricks, Redshift, ClickHouse**
-
+- [x] **Snowflake, Databricks, Redshift** ✅ *(Released in v0.8.0)*
+- [ ] **ClickHouse**
 ---
 
 ## 📄 License
